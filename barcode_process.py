@@ -45,7 +45,8 @@ def read_sheets(path):
 
 
 def extract(rows, kind):
-    """คืน [(รหัสที่ใช้ทำบาร์โค้ด, drop_name), ...] จากคอลัมน์ waybill_no หรือ Drop"""
+    """คืน [(รหัสที่ใช้ทำบาร์โค้ด, drop_name), ...] จากคอลัมน์ waybill_no หรือ Drop
+    โหมด Drop: ตัดรหัสที่ซ้ำออก (เก็บอันแรก) และใช้คอลัมน์ F เป็นชื่อ"""
     if not rows:
         return []
     default_col = 0 if kind == "waybill" else 4  # A หรือ E
@@ -58,13 +59,19 @@ def extract(rows, kind):
             col, has_header = i, True
         if "drop_name" in t:
             name_col = i
+    if kind == "drop" and name_col is None:
+        name_col = 5  # หาหัว drop_name ไม่เจอ ใช้คอลัมน์ F
     if not has_header and rows[0] and "waybill" in norm(rows[0][0]).lower():
         has_header = True  # มีหัวตารางแต่หาคอลัมน์ตามชื่อไม่เจอ
-    items = []
+    items, seen = [], set()
     for r in (rows[1:] if has_header else rows):
         code = norm(r[col]) if col < len(r) else ""
         if not code:
             continue
+        if kind == "drop":  # ตัดรหัส Drop ที่ซ้ำ
+            if code in seen:
+                continue
+            seen.add(code)
         name = norm(r[name_col]) if name_col is not None and name_col < len(r) else ""
         items.append((code, name))
     return items
